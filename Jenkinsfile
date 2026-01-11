@@ -1,5 +1,5 @@
 pipeline {
-    agent none // אנחנו נגדיר אג'נט לכל שלב בנפרד
+    agent none 
 
     environment {
         AWS_ACCOUNT_ID = '992382545251'
@@ -21,17 +21,21 @@ pipeline {
                 sh 'pip install pytest'
                 sh 'python3 -m pytest --junitxml=results.xml'
             }
+            // DoD Fix: שומרים את התוצאות מיד בתוך האג'נט שייצר אותן
+            post {
+                always {
+                    junit 'results.xml'
+                }
+            }
         }
 
         stage('Build & Push') {
-            agent any // שלב זה רץ על השרת (שיש לו גישה לפקודת docker)
+            agent any 
             steps {
                 script {
-                    // בנייה
                     sh "docker build -t ${IMAGE_URL}:${TAG} ."
                     sh "docker tag ${IMAGE_URL}:${TAG} ${IMAGE_URL}:latest"
                     
-                    // התחברות ודחיפה
                     sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
                     sh "docker push ${IMAGE_URL}:${TAG}"
                     sh "docker push ${IMAGE_URL}:latest"
@@ -44,9 +48,10 @@ pipeline {
 
     post {
         always {
-            // שמירת תוצאות הטסטים מהשלב הראשון
-            junit 'results.xml'
-            archiveArtifacts artifacts: 'results.xml'
+            node {
+                archiveArtifacts artifacts: 'results.xml'
+                echo 'CI Flow completed.'
+            }
         }
     }
 }
