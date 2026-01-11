@@ -14,7 +14,7 @@ pipeline {
             agent {
               
                 docker { 
-                    image 'python:3.9-slim'
+                    image 'python:3.11-slim'
                     reuseNode true 
                 }
             }
