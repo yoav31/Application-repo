@@ -1,11 +1,11 @@
-pipeline {
+\pipeline {
     agent any 
 
     environment {
         
         AWS_ACCOUNT_ID = '992382545251'
         AWS_REGION     = 'us-east-1'
-        ECR_REPO_NAME  = 'calculator-app'
+        ECR_REPO_NAME  = 'yoav_ecr'
         IMAGE_URL      = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}"
     }
 
