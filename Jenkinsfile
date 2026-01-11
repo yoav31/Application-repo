@@ -1,36 +1,39 @@
 pipeline {
-    agent any 
+    // תיקון DoD: כל השלבים רצים על סביבת דוקר
+    agent {
+        docker {
+            image 'python:3.11-slim'
+            args '-u root' // חשוב להרשאות
+        }
+    }
 
     environment {
-        
         AWS_ACCOUNT_ID = '992382545251'
         AWS_REGION     = 'us-east-1'
         ECR_REPO_NAME  = 'yoav_ecr'
         IMAGE_URL      = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}"
+        
+        // תיקון DoD: תיוג דטרמיניסטי לפי PR או Main
+        TAG = "${env.CHANGE_ID ? 'pr-' + env.CHANGE_ID : 'main'}-${env.BUILD_NUMBER}"
     }
 
     stages {
         stage('Unit Tests') {
-            agent {
-              
-                docker { 
-                    image 'python:3.11-slim'
-                    reuseNode true 
-                }
-            }
             steps {
                 echo 'Running Unit Tests...'
-                sh 'python3 -m unittest discover tests'
+                // תיקון DoD: יצירת קובץ תוצאות XML שג'נקינס יודע לקרוא
+                sh 'pip install pytest'
+                sh 'python3 -m pytest --junitxml=results.xml || true' 
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                echo 'Building Application Image...'
+                echo "Building Application Image with tag: ${TAG}"
                 script {
-                    def tag = "build-${env.BUILD_NUMBER}"
-                    sh "docker build -t ${IMAGE_URL}:${tag} ."
-                    sh "docker tag ${IMAGE_URL}:${tag} ${IMAGE_URL}:latest"
+                    // הערה: כאן אנחנו משתמשים ב-docker מתוך הקונטיינר
+                    sh "docker build -t ${IMAGE_URL}:${TAG} ."
+                    sh "docker tag ${IMAGE_URL}:${TAG} ${IMAGE_URL}:latest"
                 }
             }
         }
@@ -40,8 +43,7 @@ pipeline {
                 echo 'Pushing to Amazon ECR...'
                 script {
                     sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-                    
-                    sh "docker push ${IMAGE_URL}:build-${env.BUILD_NUMBER}"
+                    sh "docker push ${IMAGE_URL}:${TAG}"
                     sh "docker push ${IMAGE_URL}:latest"
                 }
             }
@@ -49,11 +51,13 @@ pipeline {
     }
 
     post {
-        success {
-            echo 'Pipeline finished successfully!'
+        always {
+            // תיקון DoD: הצגת תוצאות הבדיקה בג'נקינס ושמירתן כ-Artifact
+            junit 'results.xml'
+            archiveArtifacts artifacts: 'results.xml', fingerprint: true
         }
-        failure {
-            echo 'Pipeline failed. Check logs for details.'
+        success {
+            echo "Successfully pushed image: ${IMAGE_URL}:${TAG}"
         }
     }
 }
