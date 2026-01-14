@@ -74,6 +74,3 @@ pipeline {
                 archiveArtifacts artifacts: 'results.xml'
                 echo "Deployment Finished. App should be live at http://${PROD_SERVER_IP}:5000"
             }
-        }
-    }
-}
