@@ -4,4 +4,4 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt && pip install --no-cache-dir pytest
 COPY . .
 EXPOSE 5000
-CMD ["python", "calculator_app.py"]
+CMD ["python", "api.py"]
